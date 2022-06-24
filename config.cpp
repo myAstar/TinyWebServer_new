@@ -34,7 +34,7 @@ Config::Config(){
 
 void Config::parse_arg(int argc, char*argv[]){
     int opt;
-    const char *str = "p:l:m:o:s:t:c:a:";
+    const char *str = "p:l:m:o:s:t:c:a:";//表示命令行输入的参数 -p -l ... -a，冒号表示必须有值。（例子：./server -p 9007 -l 1 -m 0 -o 1 -s 10 -t 10 -c 1 -a 1）
     while ((opt = getopt(argc, argv, str)) != -1)
     {
         switch (opt)

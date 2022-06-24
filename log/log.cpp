@@ -19,7 +19,7 @@ Log::~Log()
         fclose(m_fp);
     }
 }
-//异步需要设置阻塞队列的长度，同步不需要设置
+//异步需要设置阻塞队列的长度，同步不需要设置。可选择的参数有日志文件、是否关闭日志（默认关闭）、日志缓冲区大小、最大行数以及最长日志条队列
 bool Log::init(const char *file_name, int close_log, int log_buf_size, int split_lines, int max_queue_size)
 {
     //如果设置了max_queue_size,则设置为异步
