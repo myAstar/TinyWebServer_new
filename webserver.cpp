@@ -197,11 +197,12 @@ void WebServer::deal_timer(util_timer *timer, int sockfd)
     LOG_INFO("close fd %d", users_timer[sockfd].sockfd);
 }
 
+//处理客户端数据
 bool WebServer::dealclinetdata()
 {
     struct sockaddr_in client_address;
     socklen_t client_addrlength = sizeof(client_address);
-    if (0 == m_LISTENTrigmode)
+    if (0 == m_LISTENTrigmode)  //如果是水平触发模式
     {
         int connfd = accept(m_listenfd, (struct sockaddr *)&client_address, &client_addrlength);
         if (connfd < 0)
@@ -218,7 +219,7 @@ bool WebServer::dealclinetdata()
         timer(connfd, client_address);
     }
 
-    else
+    else    //如果是边缘触发模式
     {
         while (1)
         {
@@ -294,11 +295,11 @@ void WebServer::dealwithread(int sockfd)
 
         while (true)
         {
-            if (1 == users[sockfd].improv)
+            if (1 == users[sockfd].improv)  //若请求被子线程处理，improv会置一。读写失败的话，timer_flag会置一
             {
                 if (1 == users[sockfd].timer_flag)
                 {
-                    deal_timer(timer, sockfd);
+                    deal_timer(timer, sockfd);  //处理定时器
                     users[sockfd].timer_flag = 0;
                 }
                 users[sockfd].improv = 0;
@@ -395,15 +396,15 @@ void WebServer::eventLoop()
             //处理新到的客户连接
             if (sockfd == m_listenfd)
             {
-                bool flag = dealclinetdata();
+                bool flag = dealclinetdata();   //处理客户端数据：接受连接并绑定端口信息，以及设置定时器
                 if (false == flag)
                     continue;
             }
-            else if (events[i].events & (EPOLLRDHUP | EPOLLHUP | EPOLLERR))
+            else if (events[i].events & (EPOLLRDHUP | EPOLLHUP | EPOLLERR)) //如果属于异常事件
             {
                 //服务器端关闭连接，移除对应的定时器
-                util_timer *timer = users_timer[sockfd].timer;
-                deal_timer(timer, sockfd);
+                util_timer *timer = users_timer[sockfd].timer;  //指针来的，删除防止内存泄漏
+                deal_timer(timer, sockfd);   //删除定时器，从epoll集合里移除对应的socket
             }
             //处理信号
             else if ((sockfd == m_pipefd[0]) && (events[i].events & EPOLLIN))

@@ -69,7 +69,7 @@ bool threadpool<T>::append(T *request, int state)
         m_queuelocker.unlock();
         return false;
     }
-    request->m_state = state;
+    request->m_state = state;   //表请求是读还是写
     m_workqueue.push_back(request);
     m_queuelocker.unlock();
     m_queuestat.post();
@@ -115,7 +115,7 @@ void threadpool<T>::run()
             continue;
         if (1 == m_actor_model) //如果模型切换。Proactor与Reactor的切换
         {
-            if (0 == request->m_state)
+            if (0 == request->m_state)  //如果请求是读
             {
                 if (request->read_once())       //循环从http_conn读取数据
                 {

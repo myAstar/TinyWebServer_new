@@ -52,18 +52,18 @@ public:
     };
     enum HTTP_CODE      //报文解析的结果
     {
-        NO_REQUEST,
-        GET_REQUEST,
-        BAD_REQUEST,
+        NO_REQUEST,     //表示请求不完整（行没有字符" \t"），需要继续接收请求数据
+        GET_REQUEST,    //获得了完整的HTTP请求
+        BAD_REQUEST,    //HTTP请求报文有语法错误
         NO_RESOURCE,
         FORBIDDEN_REQUEST,
         FILE_REQUEST,
-        INTERNAL_ERROR,
+        INTERNAL_ERROR, //服务器内部错误，该结果在主状态机逻辑switch的default下，一般不会触发
         CLOSED_CONNECTION
     };
     enum LINE_STATUS    //从状态机的状态
     {
-        LINE_OK = 0,
+        LINE_OK = 0,    //报文逐行解析成功
         LINE_BAD,
         LINE_OPEN
     };
@@ -89,7 +89,7 @@ public:
 
 private:
     void init();
-    HTTP_CODE process_read();
+    HTTP_CODE process_read();   //报文解析
     bool process_write(HTTP_CODE ret);
     HTTP_CODE parse_request_line(char *text);
     HTTP_CODE parse_headers(char *text);
@@ -122,7 +122,7 @@ private:
     int m_start_line;
     char m_write_buf[WRITE_BUFFER_SIZE];
     int m_write_idx;
-    CHECK_STATE m_check_state;
+    CHECK_STATE m_check_state;  //主状态机的状态
     METHOD m_method;
     char m_real_file[FILENAME_LEN];
     char *m_url;

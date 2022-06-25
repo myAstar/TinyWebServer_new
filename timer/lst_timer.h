@@ -97,6 +97,6 @@ public:
     int m_TIMESLOT;
 };
 
-void cb_func(client_data *user_data);
+void cb_func(client_data *user_data);   //定时器过期的回调函数，负责关闭epoll里的fd
 
 #endif

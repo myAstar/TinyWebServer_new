@@ -238,17 +238,22 @@ bool http_conn::read_once()
     }
 }
 
-//解析http请求行，获得请求方法，目标url及http版本号
-http_conn::HTTP_CODE http_conn::parse_request_line(char *text)
+
+
+
+
+//解析http请求行，获得请求方法，目标url及http版本号。 
+//在HTTP报文中，请求行用来说明请求类型,要访问的资源以及所使用的HTTP版本，其中各个部分之间通过\t或空格分隔。
+http_conn::HTTP_CODE http_conn::parse_request_line(char *text)  //text是请求行数据，如 GET /562f25980001b1b106000338.jpg HTTP/1.1
 {
-    m_url = strpbrk(text, " \t");
-    if (!m_url)
+    m_url = strpbrk(text, " \t");   //检索字符" \t"并返回" \t"及其后面的字符串
+    if (!m_url) //如果没有空格或\t，则报文格式有误
     {
         return BAD_REQUEST;
     }
-    *m_url++ = '\0';
+    *m_url++ = '\0';    //" \t"起始位置，即空格改为结束符，并跳过制表符
     char *method = text;
-    if (strcasecmp(method, "GET") == 0)
+    if (strcasecmp(method, "GET") == 0) //strcasecmp（忽略大小写比较字符串前n个字符）
         m_method = GET;
     else if (strcasecmp(method, "POST") == 0)
     {
@@ -257,15 +262,16 @@ http_conn::HTTP_CODE http_conn::parse_request_line(char *text)
     }
     else
         return BAD_REQUEST;
-    m_url += strspn(m_url, " \t");
+    //strspn() 函数用来计算字符串 m_url 中连续有几个字符都属于字符串" \t"
+    m_url += strspn(m_url, " \t");  //m_url前面跳过了第一个空格或\t字符，但不知道之后是否还有。将m_url向后偏移，通过查找，继续跳过空格和\t字符，指向请求资源的第一个字符
     m_version = strpbrk(m_url, " \t");
     if (!m_version)
         return BAD_REQUEST;
     *m_version++ = '\0';
     m_version += strspn(m_version, " \t");
-    if (strcasecmp(m_version, "HTTP/1.1") != 0)
+    if (strcasecmp(m_version, "HTTP/1.1") != 0) //仅支持HTTP/1.1
         return BAD_REQUEST;
-    if (strncasecmp(m_url, "http://", 7) == 0)
+    if (strncasecmp(m_url, "http://", 7) == 0)  //对请求资源前7个字符进行判断，这里主要是有些报文的请求资源中会带有http://，这里需要对这种情况进行单独处理
     {
         m_url += 7;
         m_url = strchr(m_url, '/');
@@ -274,7 +280,7 @@ http_conn::HTTP_CODE http_conn::parse_request_line(char *text)
     if (strncasecmp(m_url, "https://", 8) == 0)
     {
         m_url += 8;
-        m_url = strchr(m_url, '/');
+        m_url = strchr(m_url, '/'); //strchr函数功能为在一个串中查找给定字符的第一个匹配之处
     }
 
     if (!m_url || m_url[0] != '/')
@@ -286,6 +292,19 @@ http_conn::HTTP_CODE http_conn::parse_request_line(char *text)
     return NO_REQUEST;
 }
 
+
+
+/*
+调用parse_headers函数解析请求头部信息
+
+判断是空行还是请求头，若是空行，进而判断content-length是否为0，如果不是0，表明是POST请求，则状态转移到CHECK_STATE_CONTENT，否则说明是GET请求，则报文解析结束。
+
+若解析的是请求头部字段，则主要分析connection字段，content-length字段，其他字段可以直接跳过，各位也可以根据需求继续分析。
+
+connection字段判断是keep-alive还是close，决定是长连接还是短连接
+
+content-length字段，这里用于读取post请求的消息体长度
+*/
 //解析http请求的一个头部信息
 http_conn::HTTP_CODE http_conn::parse_headers(char *text)
 {
@@ -347,8 +366,8 @@ http_conn::HTTP_CODE http_conn::process_read()
 
     while ((m_check_state == CHECK_STATE_CONTENT && line_status == LINE_OK) || ((line_status = parse_line()) == LINE_OK))
     {
-        text = get_line();
-        m_start_line = m_checked_idx;
+        text = get_line();  //报文的逐行解析，返回报文的一段字符串[m_start_line,m_start_line + m_read_buf]
+        m_start_line = m_checked_idx;   //m_checked_idx表示从状态机在m_read_buf中读取的位置
         LOG_INFO("%s", text);
         switch (m_check_state)
         {
@@ -366,15 +385,15 @@ http_conn::HTTP_CODE http_conn::process_read()
                 return BAD_REQUEST;
             else if (ret == GET_REQUEST)
             {
-                return do_request();
+                return do_request();    //完整解析GET请求后，跳转到报文响应函数
             }
             break;
         }
-        case CHECK_STATE_CONTENT:
+        case CHECK_STATE_CONTENT:   
         {
             ret = parse_content(text);
             if (ret == GET_REQUEST)
-                return do_request();
+                return do_request();    //完整解析POST请求后，跳转到报文响应函数
             line_status = LINE_OPEN;
             break;
         }
@@ -385,14 +404,17 @@ http_conn::HTTP_CODE http_conn::process_read()
     return NO_REQUEST;
 }
 
+/*
+该函数将网站根目录和url文件拼接，然后通过stat判断该文件属性。另外，为了提高访问速度，通过mmap进行映射，将普通文件映射到内存逻辑地址。
+*/
 http_conn::HTTP_CODE http_conn::do_request()
 {
-    strcpy(m_real_file, doc_root);
+    strcpy(m_real_file, doc_root);  //将初始化的m_real_file赋值为网站根目录
     int len = strlen(doc_root);
     //printf("m_url:%s\n", m_url);
-    const char *p = strrchr(m_url, '/');
+    const char *p = strrchr(m_url, '/');    //找到m_url中/的位置
 
-    //处理cgi
+    //处理cgi，实现登录和注册校验
     if (cgi == 1 && (*(p + 1) == '2' || *(p + 1) == '3'))
     {
 
@@ -456,7 +478,7 @@ http_conn::HTTP_CODE http_conn::do_request()
         }
     }
 
-    if (*(p + 1) == '0')
+    if (*(p + 1) == '0')    //如果请求资源为/0，表示跳转注册界面
     {
         char *m_url_real = (char *)malloc(sizeof(char) * 200);
         strcpy(m_url_real, "/register.html");
@@ -464,15 +486,15 @@ http_conn::HTTP_CODE http_conn::do_request()
 
         free(m_url_real);
     }
-    else if (*(p + 1) == '1')
+    else if (*(p + 1) == '1')   //如果请求资源为/1，表示跳转登录界面
     {
         char *m_url_real = (char *)malloc(sizeof(char) * 200);
         strcpy(m_url_real, "/log.html");
-        strncpy(m_real_file + len, m_url_real, strlen(m_url_real));
+        strncpy(m_real_file + len, m_url_real, strlen(m_url_real)); //将网站目录和/log.html进行拼接，更新到m_real_file中
 
         free(m_url_real);
     }
-    else if (*(p + 1) == '5')
+    else if (*(p + 1) == '5')   //POST请求，跳转到picture.html，即图片请求页面
     {
         char *m_url_real = (char *)malloc(sizeof(char) * 200);
         strcpy(m_url_real, "/picture.html");
@@ -480,7 +502,7 @@ http_conn::HTTP_CODE http_conn::do_request()
 
         free(m_url_real);
     }
-    else if (*(p + 1) == '6')
+    else if (*(p + 1) == '6')   //POST请求，跳转到video.html，即视频请求页面
     {
         char *m_url_real = (char *)malloc(sizeof(char) * 200);
         strcpy(m_url_real, "/video.html");
@@ -488,7 +510,7 @@ http_conn::HTTP_CODE http_conn::do_request()
 
         free(m_url_real);
     }
-    else if (*(p + 1) == '7')
+    else if (*(p + 1) == '7')   //POST请求，跳转到fans.html，即关注页面
     {
         char *m_url_real = (char *)malloc(sizeof(char) * 200);
         strcpy(m_url_real, "/fans.html");
@@ -499,17 +521,17 @@ http_conn::HTTP_CODE http_conn::do_request()
     else
         strncpy(m_real_file + len, m_url, FILENAME_LEN - len - 1);
 
-    if (stat(m_real_file, &m_file_stat) < 0)
-        return NO_RESOURCE;
+    if (stat(m_real_file, &m_file_stat) < 0)    //通过stat获取请求资源文件信息，成功则将信息更新到m_file_stat结构体
+        return NO_RESOURCE;                     //失败返回NO_RESOURCE状态，表示资源不存在
 
-    if (!(m_file_stat.st_mode & S_IROTH))
+    if (!(m_file_stat.st_mode & S_IROTH))       //判断文件的权限，是否可读，不可读则返回FORBIDDEN_REQUEST状态
         return FORBIDDEN_REQUEST;
 
-    if (S_ISDIR(m_file_stat.st_mode))
+    if (S_ISDIR(m_file_stat.st_mode))           //判断文件类型，如果是目录，则返回BAD_REQUEST，表示请求报文有误
         return BAD_REQUEST;
 
-    int fd = open(m_real_file, O_RDONLY);
-    m_file_address = (char *)mmap(0, m_file_stat.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
+    int fd = open(m_real_file, O_RDONLY);       //以只读方式获取文件描述符，通过mmap将该文件映射到内存中
+    m_file_address = (char *)mmap(0, m_file_stat.st_size, PROT_READ, MAP_PRIVATE, fd, 0);   //PROT_READ是权限，MAP_PRIVATE建立一个写入时拷贝的私有映射，内存区域的写入不会影响到原文件
     close(fd);
     return FILE_REQUEST;
 }
