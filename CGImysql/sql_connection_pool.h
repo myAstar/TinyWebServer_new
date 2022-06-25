@@ -53,7 +53,7 @@ public:
 	~connectionRAII();
 	
 private:
-	MYSQL *conRAII;
+	MYSQL *conRAII;	//mysql自带的类型
 	connection_pool *poolRAII;
 };
 

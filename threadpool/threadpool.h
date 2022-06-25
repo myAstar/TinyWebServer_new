@@ -16,7 +16,7 @@ public:
     threadpool(int actor_model, connection_pool *connPool, int thread_number = 8, int max_request = 10000);
     ~threadpool();
     bool append(T *request, int state);
-    bool append_p(T *request);
+    bool append_p(T *request);  //向请求队列中插入任务请求
 
 private:
     /*工作线程运行的函数，它不断从工作队列中取出任务并执行之*/
@@ -38,17 +38,17 @@ threadpool<T>::threadpool( int actor_model, connection_pool *connPool, int threa
 {
     if (thread_number <= 0 || max_requests <= 0)
         throw std::exception();
-    m_threads = new pthread_t[m_thread_number];
+    m_threads = new pthread_t[m_thread_number]; //描述线程池的数组
     if (!m_threads)
         throw std::exception();
     for (int i = 0; i < thread_number; ++i)
     {
-        if (pthread_create(m_threads + i, NULL, worker, this) != 0)
+        if (pthread_create(m_threads + i, NULL, worker, this) != 0) //第一个参数是线程id，worker是线程回调函数，最后一个是回调函数的参数
         {
             delete[] m_threads;
             throw std::exception();
         }
-        if (pthread_detach(m_threads[i]))
+        if (pthread_detach(m_threads[i]))   //将主线程与子线程脱离，防止僵尸线程
         {
             delete[] m_threads;
             throw std::exception();
@@ -86,7 +86,7 @@ bool threadpool<T>::append_p(T *request)
     }
     m_workqueue.push_back(request);
     m_queuelocker.unlock();
-    m_queuestat.post();
+    m_queuestat.post(); //提醒有新的任务。
     return true;
 }
 template <typename T>
@@ -101,27 +101,27 @@ void threadpool<T>::run()
 {
     while (true)
     {
-        m_queuestat.wait();
+        m_queuestat.wait(); //等待信号量，新任务到来时就会有一个信号量
         m_queuelocker.lock();
-        if (m_workqueue.empty())
+        if (m_workqueue.empty())    //没有任务就继续循环等待，因为是所有线程争着处理
         {
             m_queuelocker.unlock();
             continue;
         }
-        T *request = m_workqueue.front();
+        T *request = m_workqueue.front();   //bool threadpool<T>::append(T* request)：这个request的类型还得看具体的类定义，server的为threadpool<http_conn>
         m_workqueue.pop_front();
         m_queuelocker.unlock();
         if (!request)
             continue;
-        if (1 == m_actor_model)
+        if (1 == m_actor_model) //如果模型切换。Proactor与Reactor的切换
         {
             if (0 == request->m_state)
             {
-                if (request->read_once())
+                if (request->read_once())       //循环从http_conn读取数据
                 {
                     request->improv = 1;
-                    connectionRAII mysqlcon(&request->mysql, m_connPool);
-                    request->process();
+                    connectionRAII mysqlcon(&request->mysql, m_connPool);   //从m_connPool连接池里取出一条连接MYSQL赋给request->mysql
+                    request->process();                                     //http_conn request有一个数据库的连接参数，用户名、密码等，靠MYSQL建立。第二个参数是数据库连接池，连接成功返回给request->mysql
                 }
                 else
                 {
@@ -142,7 +142,7 @@ void threadpool<T>::run()
                 }
             }
         }
-        else
+        else    
         {
             connectionRAII mysqlcon(&request->mysql, m_connPool);
             request->process();

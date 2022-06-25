@@ -32,7 +32,7 @@ public:
     static const int FILENAME_LEN = 200;
     static const int READ_BUFFER_SIZE = 2048;
     static const int WRITE_BUFFER_SIZE = 1024;
-    enum METHOD
+    enum METHOD //报文的请求方法，本项目只用到GET和POST
     {
         GET = 0,
         POST,
@@ -44,13 +44,13 @@ public:
         CONNECT,
         PATH
     };
-    enum CHECK_STATE
+    enum CHECK_STATE    //主状态机的状态
     {
         CHECK_STATE_REQUESTLINE = 0,
         CHECK_STATE_HEADER,
         CHECK_STATE_CONTENT
     };
-    enum HTTP_CODE
+    enum HTTP_CODE      //报文解析的结果
     {
         NO_REQUEST,
         GET_REQUEST,
@@ -61,7 +61,7 @@ public:
         INTERNAL_ERROR,
         CLOSED_CONNECTION
     };
-    enum LINE_STATUS
+    enum LINE_STATUS    //从状态机的状态
     {
         LINE_OK = 0,
         LINE_BAD,

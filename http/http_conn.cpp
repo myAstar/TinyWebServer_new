@@ -63,11 +63,11 @@ void addfd(int epollfd, int fd, bool one_shot, int TRIGMode)
     event.data.fd = fd;
 
     if (1 == TRIGMode)
-        event.events = EPOLLIN | EPOLLET | EPOLLRDHUP;
+        event.events = EPOLLIN | EPOLLET | EPOLLRDHUP;  //EPOLLRDHUP表示描述符被挂断
     else
-        event.events = EPOLLIN | EPOLLRDHUP;
+        event.events = EPOLLIN | EPOLLRDHUP;    //EPOLL默认是水平触发模式
 
-    if (one_shot)
+    if (one_shot)   //只监听一次事件，当监听完这次事件之后，如果还需要继续监听这个socket的话，需要再次把这个socket加入到EPOLL队列里
         event.events |= EPOLLONESHOT;
     epoll_ctl(epollfd, EPOLL_CTL_ADD, fd, &event);
     setnonblocking(fd);
@@ -216,7 +216,7 @@ bool http_conn::read_once()
 
         return true;
     }
-    //ET读数据
+    //ET读数据，一次性将数据读完或填满缓冲区
     else
     {
         while (true)
@@ -224,7 +224,7 @@ bool http_conn::read_once()
             bytes_read = recv(m_sockfd, m_read_buf + m_read_idx, READ_BUFFER_SIZE - m_read_idx, 0);
             if (bytes_read == -1)
             {
-                if (errno == EAGAIN || errno == EWOULDBLOCK)
+                if (errno == EAGAIN || errno == EWOULDBLOCK)    //在VxWorks和Windows上，EAGAIN的名字叫做EWOULDBLOCK,表无数据可读
                     break;
                 return false;
             }
@@ -690,7 +690,7 @@ void http_conn::process()
     HTTP_CODE read_ret = process_read();
     if (read_ret == NO_REQUEST)
     {
-        modfd(m_epollfd, m_sockfd, EPOLLIN, m_TRIGMode);
+        modfd(m_epollfd, m_sockfd, EPOLLIN, m_TRIGMode);    //将事件重置为EPOLLONESHOT
         return;
     }
     bool write_ret = process_write(read_ret);
