@@ -26,23 +26,24 @@
 
 class util_timer;
 
-struct client_data
-{
-    sockaddr_in address;
+struct client_data  //连接资源
+{   
+    //TODO 可以找到客户端连接的ip地址，用它来做一些业务，比如通过ip来判断是否异地登录等。
+    sockaddr_in address;    //客户端socket地址  
     int sockfd;
-    util_timer *timer;
+    util_timer *timer;  //定时器
 };
 
-class util_timer
+class util_timer    //定时器类
 {
 public:
     util_timer() : prev(NULL), next(NULL) {}
 
 public:
-    time_t expire;
+    time_t expire;  //超时时间
+    void (* cb_func)(client_data *);    //回调函数
+    client_data *user_data; //连接资源
     
-    void (* cb_func)(client_data *);
-    client_data *user_data;
     util_timer *prev;
     util_timer *next;
 };

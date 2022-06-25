@@ -129,7 +129,7 @@ private:
     char *m_version;
     char *m_host;
     int m_content_length;
-    bool m_linger;
+    bool m_linger;  //浏览器的请求为长连接
     char *m_file_address;
     struct stat m_file_stat;
     struct iovec m_iv[2];

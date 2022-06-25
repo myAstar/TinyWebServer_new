@@ -24,6 +24,7 @@ public:
             exit(-1);
         }
 
+        //构造函数创建循环数组
         m_max_size = max_size;
         m_array = new T[max_size];
         m_size = 0;
@@ -131,13 +132,14 @@ public:
         if (m_size >= m_max_size)
         {
 
-            m_cond.broadcast();
+            m_cond.broadcast(); //广播唤醒
             m_mutex.unlock();
             return false;
         }
 
+        //将新增数据放在循环数组的对应位置
         m_back = (m_back + 1) % m_max_size;
-        m_array[m_back] = item;
+        m_array[m_back] = item; //队列中压入T
 
         m_size++;
 
@@ -150,17 +152,17 @@ public:
     {
 
         m_mutex.lock();
-        while (m_size <= 0)
+        while (m_size <= 0) //多个消费者的时候，这里要是用while而不是if
         {
             
-            if (!m_cond.wait(m_mutex.get()))
+            if (!m_cond.wait(m_mutex.get()))    //当重新抢到互斥锁，pthread_cond_wait返回为0
             {
                 m_mutex.unlock();
                 return false;
             }
         }
 
-        m_front = (m_front + 1) % m_max_size;
+        m_front = (m_front + 1) % m_max_size;   //取出队列首的元素，这里需要理解一下，使用循环数组模拟的队列
         item = m_array[m_front];
         m_size--;
         m_mutex.unlock();
@@ -168,6 +170,7 @@ public:
     }
 
     //增加了超时处理
+    //在pthread_cond_wait基础上增加了等待的时间，只指定时间内能抢到互斥锁即可
     bool pop(T &item, int ms_timeout)
     {
         struct timespec t = {0, 0};
@@ -203,7 +206,7 @@ private:
     cond m_cond;
 
     T *m_array;
-    int m_size;
+    int m_size;    //当前队列中的元素值
     int m_max_size;
     int m_front;
     int m_back;
