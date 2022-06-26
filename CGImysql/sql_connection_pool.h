@@ -47,11 +47,9 @@ public:
 };
 
 class connectionRAII{
-
 public:
 	connectionRAII(MYSQL **con, connection_pool *connPool);
 	~connectionRAII();
-	
 private:
 	MYSQL *conRAII;	//mysql自带的类型
 	connection_pool *poolRAII;

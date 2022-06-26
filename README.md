@@ -140,6 +140,27 @@ Demo演示
 
     // 添加数据
     INSERT INTO user(username, passwd) VALUES('name', 'passwd');
+
+    //循环添加数据
+    USE yourdb;
+
+    DELIMITER //
+    CREATE PROCEDURE `bath_insert2`(IN n INT)
+    BEGIN
+    DECLARE i INT;
+    SET i = 1;
+    WHILE i <= n DO
+    insert into user(username, passwd) VALUES(cast(i as char),cast(i as char));
+    SET i = i +1;
+    END WHILE;
+    END //
+    DELIMITER ;
+
+    //插入10000条数据
+    CALL bath_insert2(10000);
+
+    //删除表中所有行
+    delete from user
     ```
 
 * 修改main.cpp中的数据库初始化信息

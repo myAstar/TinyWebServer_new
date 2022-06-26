@@ -415,9 +415,21 @@ http_conn::HTTP_CODE http_conn::do_request()
     int len = strlen(doc_root);
     //printf("m_url:%s\n", m_url);
     const char *p = strrchr(m_url, '/');    //找到m_url中/的位置
+/*
+    用户在网页上点击所发回的数据
+    点击新用户：POST /0 HTTP/1.1
+    点击注册：POST /3CGISQL.cgi HTTP/1.1
 
+    点击已有账户：POST /1 HTTP/1.1
+    点击确定：POST /2CGISQL.cgi HTTP/1.1
+
+    点击xxx.jpg：GET /test1.jpg HTTP/1.1
+    点击xxx.avi：GET /xxx.mp4 HTTP/1.1
+    点击关注我：POST /7 HTTP/1.1
+
+*/
     //处理cgi，实现登录和注册校验
-    if (cgi == 1 && (*(p + 1) == '2' || *(p + 1) == '3'))
+    if (cgi == 1 && (*(p + 1) == '2' || *(p + 1) == '3'))   
     {
 
         //根据标志判断是登录检测还是注册检测
@@ -457,7 +469,6 @@ http_conn::HTTP_CODE http_conn::do_request()
 
             if (users.find(name) == users.end())
             {   
-                //FIXME 数据库本身具有一致性，这里不需要加锁吧？
                 m_lock.lock();
                 int res = mysql_query(mysql, sql_insert);   //将指令传给数据库进行查询
                 users.insert(pair<string, string>(name, password)); //账户密码map插入
