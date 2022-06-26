@@ -27,14 +27,14 @@ public:
     //可选择的参数有日志文件、是否关闭日志（默认关闭）、日志缓冲区大小、最大行数以及最长日志条队列
     bool init(const char *file_name, int close_log, int log_buf_size = 8192, int split_lines = 5000000, int max_queue_size = 0);
 
-    void write_log(int level, const char *format, ...);
+    void write_log(int level, const char *format, ...); //将输出内容按照标准格式整理
 
-    void flush(void);
+    void flush(void);   //强制刷新缓冲区
 
 private:
     Log();
     virtual ~Log();
-    void *async_write_log()
+    void *async_write_log() //异步写日志方法
     {
         string single_log;
         //从阻塞队列中取出一个日志string，写入文件
@@ -61,6 +61,7 @@ private:
     int m_close_log; //关闭日志
 };
 
+//这四个宏定义在其他文件中使用，主要用于不同类型的日志输出
 #define LOG_DEBUG(format, ...) if(0 == m_close_log) {Log::get_instance()->write_log(0, format, ##__VA_ARGS__); Log::get_instance()->flush();}
 #define LOG_INFO(format, ...) if(0 == m_close_log) {Log::get_instance()->write_log(1, format, ##__VA_ARGS__); Log::get_instance()->flush();}
 #define LOG_WARN(format, ...) if(0 == m_close_log) {Log::get_instance()->write_log(2, format, ##__VA_ARGS__); Log::get_instance()->flush();}

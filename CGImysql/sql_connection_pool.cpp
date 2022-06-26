@@ -25,6 +25,7 @@ connection_pool *connection_pool::GetInstance()
 //构造初始化
 void connection_pool::init(string url, string User, string PassWord, string DBName, int Port, int MaxConn, int close_log)
 {
+	//初始化数据库信息
 	m_url = url;
 	m_Port = Port;
 	m_User = User;
@@ -32,6 +33,8 @@ void connection_pool::init(string url, string User, string PassWord, string DBNa
 	m_DatabaseName = DBName;
 	m_close_log = close_log;
 
+	//FIXME 数据库连接池使用的是通过账号密码？这样的话每个访问用户的权限是否一致？
+	//创建MaxConn条数据库连接（使用的是同个用户账号密码？）
 	for (int i = 0; i < MaxConn; i++)
 	{
 		MYSQL *con = NULL;
@@ -42,6 +45,7 @@ void connection_pool::init(string url, string User, string PassWord, string DBNa
 			LOG_ERROR("MySQL Error");
 			exit(1);
 		}
+		//发起数据库连接
 		con = mysql_real_connect(con, url.c_str(), User.c_str(), PassWord.c_str(), DBName.c_str(), Port, NULL, 0);
 
 		if (con == NULL)
@@ -53,6 +57,7 @@ void connection_pool::init(string url, string User, string PassWord, string DBNa
 		++m_FreeConn;
 	}
 
+	//将信号量初始化为最大连接次数
 	reserve = sem(m_FreeConn);
 
 	m_MaxConn = m_FreeConn;
@@ -67,6 +72,7 @@ MYSQL *connection_pool::GetConnection()
 	if (0 == connList.size())
 		return NULL;
 
+	//取出连接，信号量原子减1，为0则等待（阻塞等待唤醒）
 	reserve.wait();
 	
 	lock.lock();
@@ -138,6 +144,7 @@ connectionRAII::connectionRAII(MYSQL **SQL, connection_pool *connPool){
 	poolRAII = connPool;
 }
 
+//RAII机制销毁连接池
 connectionRAII::~connectionRAII(){
-	poolRAII->ReleaseConnection(conRAII);
+	poolRAII->ReleaseConnection(conRAII);	//poolRAII为connectionRAII类的成员
 }

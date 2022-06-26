@@ -14,8 +14,9 @@ const char *error_404_form = "The requested file was not found on this server.\n
 const char *error_500_title = "Internal Error";
 const char *error_500_form = "There was an unusual problem serving the request file.\n";
 
+
 locker m_lock;
-map<string, string> users;
+map<string, string> users;  //用户名和密码
 
 void http_conn::initmysql_result(connection_pool *connPool)
 {
@@ -43,7 +44,8 @@ void http_conn::initmysql_result(connection_pool *connPool)
     {
         string temp1(row[0]);
         string temp2(row[1]);
-        users[temp1] = temp2;
+        //FIXME 这里提前将所有的用户信息都提前取出来放内存是否有必要？数据库不是有快表机制吗，每次用户登陆时再来访问？
+        users[temp1] = temp2;   //存入一个map中 
     }
 }
 
@@ -445,6 +447,7 @@ http_conn::HTTP_CODE http_conn::do_request()
             //如果是注册，先检测数据库中是否有重名的
             //没有重名的，进行增加数据
             char *sql_insert = (char *)malloc(sizeof(char) * 200);
+            //拼接mysql指令
             strcpy(sql_insert, "INSERT INTO user(username, passwd) VALUES(");
             strcat(sql_insert, "'");
             strcat(sql_insert, name);
@@ -453,10 +456,11 @@ http_conn::HTTP_CODE http_conn::do_request()
             strcat(sql_insert, "')");
 
             if (users.find(name) == users.end())
-            {
+            {   
+                //FIXME 数据库本身具有一致性，这里不需要加锁吧？
                 m_lock.lock();
-                int res = mysql_query(mysql, sql_insert);
-                users.insert(pair<string, string>(name, password));
+                int res = mysql_query(mysql, sql_insert);   //将指令传给数据库进行查询
+                users.insert(pair<string, string>(name, password)); //账户密码map插入
                 m_lock.unlock();
 
                 if (!res)
@@ -482,7 +486,7 @@ http_conn::HTTP_CODE http_conn::do_request()
     {
         char *m_url_real = (char *)malloc(sizeof(char) * 200);
         strcpy(m_url_real, "/register.html");
-        strncpy(m_real_file + len, m_url_real, strlen(m_url_real));
+        strncpy(m_real_file + len, m_url_real, strlen(m_url_real)); //m_real_file前面是根目录，len是根目录的长度
 
         free(m_url_real);
     }
